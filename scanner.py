@@ -1,10 +1,10 @@
 import socket
-import threading
 import time
 import ipaddress
+from concurrent.futures import ThreadPoolExecutor
 
 
-def scan_port(target, port, open_ports, lock):
+def scan_port(target, port):
     """
     Check whether a TCP port is open.
     """
@@ -21,11 +21,12 @@ def scan_port(target, port, open_ports, lock):
             except OSError:
                 service = "Unknown"
 
-            with lock:
-                open_ports.append((port, service))
+            return port, service
 
     finally:
         sock.close()
+
+    return None
 
 
 def main():
@@ -38,6 +39,7 @@ def main():
         print("Invalid IP address.")
         return
 
+    # Get the port range
     try:
         start_port = int(input("Enter starting port: "))
         end_port = int(input("Enter ending port: "))
@@ -45,6 +47,7 @@ def main():
         print("Please enter valid port numbers.")
         return
 
+    # Validate the port range
     if start_port < 1 or end_port > 65535 or start_port > end_port:
         print("Invalid port range.")
         return
@@ -57,20 +60,18 @@ def main():
     start_time = time.time()
 
     open_ports = []
-    lock = threading.Lock()
-    threads = []
 
-    for port in range(start_port, end_port + 1):
-        thread = threading.Thread(
-            target=scan_port,
-            args=(target, port, open_ports, lock)
+    # Create a pool of 100 worker threads
+    with ThreadPoolExecutor(max_workers=100) as executor:
+
+        results = executor.map(
+            lambda port: scan_port(target, port),
+            range(start_port, end_port + 1)
         )
 
-        thread.start()
-        threads.append(thread)
-
-    for thread in threads:
-        thread.join()
+        for result in results:
+            if result is not None:
+                open_ports.append(result)
 
     scan_time = time.time() - start_time
     ports_scanned = end_port - start_port + 1
