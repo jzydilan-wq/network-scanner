@@ -1,6 +1,7 @@
 import socket
 import threading
 import time
+import ipaddress
 
 
 def scan_port(target, port, open_ports, lock):
@@ -29,6 +30,13 @@ def scan_port(target, port, open_ports, lock):
 
 def main():
     target = input("Enter an IP address: ")
+
+    # Validate the IP address
+    try:
+        ipaddress.ip_address(target)
+    except ValueError:
+        print("Invalid IP address.")
+        return
 
     try:
         start_port = int(input("Enter starting port: "))
